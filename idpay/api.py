@@ -1,12 +1,14 @@
+# -*- coding: utf-8 -*-
+
 """
     IDPay Python Package 
-    docs: https://idpay.ir/web-service/v1.1/#8614460e98
+    docs: https://idpay.ir/web-service/v1.1/
 """
 
 import requests
 import json
 from .logger import GetLogger
-
+from .utils import validate_api_key, validate_domain
 
 GLOBAL_LOGGER = GetLogger()
 
@@ -16,18 +18,19 @@ class HttpRequest:
     Base Class For adding get and post request to IDpay Class
     """
     def post(self, *args, **kwargs):
-        return requests.post(args, kwargs)
+        GLOBAL_LOGGER.warning(f"SENDING POST REQUEST to {kwargs.get('url')}")
+        return requests.post(*args, **kwargs)
 
     def get(self, *args, **kwargs):
-        return requests.post(args, kwargs)
+        GLOBAL_LOGGER.warning(f"SENDING GET REQUEST to {kwargs.get('url')}")
+        return requests.post(*args, **kwargs)
 
 
 
 
 class IDpayBase:
-    
     endpoint = 'https://api.idpay.ir/v1.1/'
-    
+
 
 
 class IDPay(HttpRequest, IDpayBase):
@@ -43,10 +46,10 @@ class IDPay(HttpRequest, IDpayBase):
         
     """
 
-    def __init__(self, api_key, domain, sandbox = False):
-        self.api_key = api_key
-        self.domain = domain
-        self.sandbox = sandbox
+    def __init__(self, api_key:str, domain:str, sandbox:bool=False):
+        self.api_key = self.SetAPIKey(api_key)
+        self.domain = self.SetDomain(domain)
+        self.sandbox = self.SetSandBox(sandbox)
         self.log = GLOBAL_LOGGER
 
         self.headers = {
@@ -56,24 +59,39 @@ class IDPay(HttpRequest, IDpayBase):
         }
 
 
-    def payment(self, order_id, amount, callback_page, payer = {}):
+    def SetAPIKey(self, api_key:str) -> None:
+        """
+        Set the API key value
+        """
+        if validate_api_key(api_key):
+            self.api_key = api_key
+
+    def SetDomain(self, doamin:str) -> None:
+        """
+        Set the Domain
+        """
+        if validate_domain(doamin):
+            self.domain = doamin
+
+    def SetSandBox(self, sandbox:bool=False):
+        self.sandbox = '1' if sandbox else '0'
+
+    def payment(self, order_id:int, amount:int, callback_page:str, payer:dict={}) -> dict:
         data = {
             'order_id': order_id,
             'amount': amount,
             'callback': self.domain + callback_page,
-            'name': payer.get('name'),
-            'phone': payer.get('phone'),
-            'mail': payer.get('mail'),
-            'desc': payer.get('desc'),
+            'name': payer.get('name', ""),
+            'phone': payer.get('phone', ""),
+            'mail': payer.get('mail', ""),
+            'desc': payer.get('desc', ""),
         }
 
         url = self.endpoint + "/payment"
-        self.log(f"SEND POST REQUEST TO {url}")
-        request = self.post(url, data=json.dumps(data), headers=self.headers)
+        request = self.post(url=url, data=json.dumps(data), headers=self.headers)
 
         if request.status_code == 201:
             return request.json()
-
         else:
             response = request.json()
             message = "Http status Code : " + str(request.status_code) + "   |   " + "Error Code : " + str(response['error_code']) + "   |   " + "Description : " + str(response['error_message'])
@@ -81,15 +99,14 @@ class IDPay(HttpRequest, IDpayBase):
         return {'message': message}
 
 
-    def verify(self, id, order_id):
+    def verify(self, id:int, order_id:int) -> dict:
         """ Verify a Payment Transaction"""
         data = {
             'id': id,
             'order_id': order_id,
         }
         url = self.endpoint + "payment/verify"
-        self.log(f"SEND POST REQUEST TO {url}")
-        request = self.post(url, data=json.dumps(data), headers=self.headers)
+        request = self.post(url=url, data=json.dumps(data), headers=self.headers)
 
         if request.status_code == 200:
             response = request.json()
@@ -113,15 +130,12 @@ class IDPay(HttpRequest, IDpayBase):
         }
 
         url = self.endpoint + "payment/inquiry"
-        self.log(f"SEND POST REQUEST TO {url}")
-        request = self.post(url, data=json.dumps(data), headers=self.headers)
+        request = self.post(url=url, data=json.dumps(data), headers=self.headers)
         
         if request.status_code == 200:
             response = request.json()
             response['message'] = "Status: " + str(response['status']) + " (" + self.get_status(response['status']) + ")"
-
             return response
-
         else:
             response = request.json()
             message = "Http status Code : " + str(request.status_code) + "   |   " + "Error Code : " + str(response['error_code']) + "   |   " + "Description : " + str(response['error_message'])
@@ -145,7 +159,6 @@ class IDPay(HttpRequest, IDpayBase):
             101: 'Verified again',
             200: 'Transaction settled',
         }
-        if type(states) == type(int):
-            return states.get(status, "Invalid Status Number")
-        
+        if isinstance(status, int):
+            return states.get(status, "Invalid status Number")
         return False
