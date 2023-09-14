@@ -8,13 +8,34 @@ Pip package for implement API's payment service of [IDPay](https://idpay.ir).
 Require idpay package in your project by:
 
 ```bash
-pip install idpay
+pip install -U idpay 
 ```
 
-Import package into your project by:
+### how to use
 
 ```python
-from idpay.api import IDPayAPI
+from idpay import IDPay
+
+# create an instance of IDPay Class
+IDpayManager = IDPay(
+    api_key="put your api key here",
+    sandbox=True or False,
+    domain="yourdomain.ir"
+)
+
+# During the application running you can change the api_key and domain and sandbox with the following methods
+IDpayManager.SetDomain(domain="domain")
+IDpayManager.SetAPIKey(api_key="yourapikey")
+IDpayManager.SetSandBox(sandbox=True or False)
+
+# Methods:
+IDpayManager.verify()
+IDpayManager.payment()
+IDpayManager.inquiry()
+IDpayManager.get_status()
 ```
 
-Please see [IDPay Django Project](https://github.com/idpay/python-django) for more example
+official Documentation: 
+https://idpay.ir/web-service/v1.1/
+
+
